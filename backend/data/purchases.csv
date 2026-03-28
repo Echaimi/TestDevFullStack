@@ -1,0 +1,5 @@
+customer_number,purchase_identifier,product_id,quantity,price,currency,date
+CUST-001,PUR-001,PROD-42,2,19.99,EUR,2024-01-15
+CUST-001,PUR-002,PROD-10,1,5.50,EUR,2024-02-01
+CUST-002,PUR-003,PROD-42,3,19.99,EUR,2024-01-20
+CUST-003,PUR-004,PROD-99,1,120.00,EUR,2024-03-10

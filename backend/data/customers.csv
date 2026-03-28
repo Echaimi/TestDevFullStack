@@ -1,0 +1,4 @@
+customer_number,title,last_name,first_name,postal_code,city,email
+CUST-001,1,Dupont,Marie,75001,Paris,marie@example.com
+CUST-002,2,Martin,Jean,69001,Lyon,jean@example.com
+CUST-003,1,Bernard,Sophie,33000,Bordeaux,sophie@example.com
