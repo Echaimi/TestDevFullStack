@@ -1,9 +1,15 @@
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import CustomersPage from './pages/CustomersPage';
+import OrdersPage from './pages/OrdersPage';
+
 function App() {
   return (
-    <div className="page">
-      <h1>Clients</h1>
-      <p>Interface en cours de construction (Vite + React + TypeScript).</p>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<CustomersPage />} />
+        <Route path="/customers/:id/orders" element={<OrdersPage />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
