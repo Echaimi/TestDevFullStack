@@ -109,6 +109,12 @@ tbody tr:last-child td {
   color: #b91c1c;
 }
 
+.loading-hint {
+  margin: 0 0 0.75rem;
+  color: var(--text);
+  opacity: 0.85;
+}
+
 body {
   margin: 0;
 }

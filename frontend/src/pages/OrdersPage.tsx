@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import axios from 'axios';
 import { fetchOrders } from '../api/client';
 import type { Order } from '../types';
 
@@ -7,14 +8,20 @@ export default function OrdersPage() {
   const { id } = useParams<{ id: string }>();
   const customerId = id ? Number.parseInt(id, 10) : NaN;
   const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (Number.isNaN(customerId)) {
+      setLoading(false);
       return;
     }
+    const ac = new AbortController();
     let cancelled = false;
-    fetchOrders(customerId)
+    setLoading(true);
+    setError(null);
+    setOrders([]);
+    fetchOrders(customerId, ac.signal)
       .then((data) => {
         if (!cancelled) {
           if (Array.isArray(data)) {
@@ -24,13 +31,20 @@ export default function OrdersPage() {
           }
         }
       })
-      .catch(() => {
+      .catch((err) => {
+        if (cancelled || axios.isCancel(err)) {
+          return;
+        }
+        setError('Impossible de charger les commandes.');
+      })
+      .finally(() => {
         if (!cancelled) {
-          setError('Impossible de charger les commandes.');
+          setLoading(false);
         }
       });
     return () => {
       cancelled = true;
+      ac.abort();
     };
   }, [customerId]);
 
@@ -45,6 +59,11 @@ export default function OrdersPage() {
         <Link to="/">← Retour à la liste des clients</Link>
       </p>
       <h1>Commandes du client #{id}</h1>
+      {loading && (
+        <p className="loading-hint" role="status">
+          Chargement…
+        </p>
+      )}
       {error && <p className="error">{error}</p>}
       <div className="table-wrap">
         <table>

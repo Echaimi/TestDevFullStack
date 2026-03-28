@@ -1,33 +1,50 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 import { fetchCustomers } from '../api/client';
 import type { Customer } from '../types';
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const ac = new AbortController();
     let cancelled = false;
-    fetchCustomers()
+    setLoading(true);
+    setError(null);
+    fetchCustomers(ac.signal)
       .then((data) => {
         if (!cancelled) {
           setCustomers(Array.isArray(data) ? data : []);
         }
       })
-      .catch(() => {
+      .catch((err) => {
+        if (cancelled || axios.isCancel(err)) {
+          return;
+        }
+        setError('Impossible de charger les clients.');
+      })
+      .finally(() => {
         if (!cancelled) {
-          setError('Impossible de charger les clients.');
+          setLoading(false);
         }
       });
     return () => {
       cancelled = true;
+      ac.abort();
     };
   }, []);
 
   return (
     <div className="page">
       <h1>Clients</h1>
+      {loading && (
+        <p className="loading-hint" role="status">
+          Chargement…
+        </p>
+      )}
       {error && <p className="error">{error}</p>}
       <div className="table-wrap">
         <table>

@@ -1,141 +1,86 @@
-# DI-UGO-TEST-FULL-STACK
+# Test full stack — Symfony + React
 
-Application full stack : API **Symfony** (PHP) + interface **React** (TypeScript, Vite).
-
-## Architecture (bonnes pratiques appliquées)
-
-- **Backend** : séparation **présentation / métier** — DTO en `src/Dto/Api/` pour le contrat JSON, import CSV dans `src/Application/Import/`, commande console fine qui délègue au service. Réponses API via **Symfony Serializer** (avec `symfony/property-access`). Entités annotées **Validator** ; l’import valide chaque client et chaque commande avant persistance.
-- **Frontend** : client HTTP centralisé avec **Axios** (instance unique, timeout, `Accept`), URL d’API configurable par variable d’environnement `VITE_API_BASE_URL` (voir `frontend/.env.example`).
+Stack : Symfony 7 (SQLite), React 19 + TypeScript, Vite. En développement, Vite proxifie `/api` vers `http://127.0.0.1:8000` (même origine, moins de latence CORS). Pour forcer une URL absolue, définir `VITE_API_BASE_URL` (voir `frontend/.env.example`). En build de prod sans variable, l’API par défaut est `http://localhost:8000`.
 
 ## Prérequis
 
-- PHP 8.3+ avec extensions `pdo_sqlite`, `mbstring`, `openssl`, `curl`, `zip` (recommandé pour Composer)
-- [Composer](https://getcomposer.org/)
-- Node.js 20+ et npm
+PHP 8.2+ (pdo_sqlite, extensions habituelles pour Composer), Composer, Node 20+ et npm.
 
-## Backend (`backend/`)
-
-### Installation
+## Backend
 
 ```bash
 cd backend
 composer install
 ```
 
-### Base de données
-
-SQLite est configurée dans `.env` :
+Base SQLite, URL dans `.env` :
 
 ```env
 DATABASE_URL="sqlite:///%kernel.project_dir%/var/data.db"
 ```
 
-### Migrations
+Migrations :
 
 ```bash
 php bin/console doctrine:migrations:migrate
 ```
 
-### Importer les CSV
-
-Les fichiers `customers.csv` et `purchases.csv` sont attendus dans `backend/data/` (déjà fournis en exemple). Encodage CSV attendu : **UTF-8**, séparateur **virgule**, première ligne = en-têtes (noms de colonnes en **snake_case**).
-
-**`customers.csv`**
-
-| Colonne | Description |
-|---------|-------------|
-| `customer_number` | Identifiant métier unique (upsert) |
-| `title` | `1` → `mme`, `2` → `m`, sinon valeur telle quelle |
-| `last_name` | Nom |
-| `first_name` | Prénom |
-| `postal_code` | Code postal |
-| `city` | Ville |
-| `email` | Email (format valide requis) |
-
-**`purchases.csv`**
-
-| Colonne | Description |
-|---------|-------------|
-| `customer_number` | Référence vers un client existant (fichier clients ou déjà en base) |
-| `purchase_identifier` | Identifiant d’achat |
-| `product_id` | Référence produit |
-| `quantity` | Entier > 0 |
-| `price` | Nombre ≥ 0 |
-| `currency` | Code devise (3 à 8 caractères, ex. `EUR`) |
-| `date` | `YYYY-MM-DD`, ISO 8601 ou `Y-m-d H:i:s` |
+Import des données : déposer `customers.csv` et `purchases.csv` dans `backend/data/` (des exemples sont déjà là). UTF-8, virgule, première ligne = en-têtes. Civilité dans le CSV : `1` → `mme`, `2` → `m`. Puis :
 
 ```bash
 php bin/console ugo:orders:import
 ```
 
-La commande met à jour les clients par `customer_number` (upsert), supprime les commandes existantes puis réimporte les lignes de `purchases.csv`. Les lignes invalides (validation ou client inconnu) sont ignorées avec un avertissement en console.
+À chaque import, les commandes en base sont remplacées par le contenu du CSV ; les clients sont fusionnés par `customer_number`. Une ligne invalide est ignorée avec un message dans le terminal.
 
-### Lancer l’API (port 8000)
+Lancer l’API :
 
 ```bash
 php -S localhost:8000 -t public
 ```
 
-Endpoints :
+- `GET /customers`
+- `GET /customers/{id}/orders`
 
-- `GET http://localhost:8000/customers`
-- `GET http://localhost:8000/customers/{id}/orders`
+CORS est ouvert pour `localhost` et `127.0.0.1` (config Nelmio + `.env`).
 
-### Tests PHPUnit
+Tests :
 
 ```bash
-cd backend
 php bin/console doctrine:migrations:migrate --env=test --no-interaction
 php bin/phpunit
 ```
 
-## Frontend (`frontend/`)
-
-### Installation
+## Frontend
 
 ```bash
 cd frontend
 npm install
-```
-
-### Lancer le serveur de développement
-
-```bash
-npm run dev
-```
-
-Ou, équivalent proche de Create React App :
-
-```bash
 npm start
 ```
 
-L’URL par défaut Vite est `http://localhost:5173`. Les en-têtes CORS du backend autorisent `localhost` et `127.0.0.1` sur n’importe quel port (dont `http://localhost:3000` si vous utilisez un autre outil) — voir `nelmio/cors-bundle` et `CORS_ALLOW_ORIGIN` dans `.env`.
+(Vite écoute en général sur http://localhost:5173 — le `npm start` du sujet est prévu.) Le backend doit tourner sur le port 8000 pour que le proxy `/api` fonctionne.
 
-Pour pointer vers une autre API (CI, Docker, etc.) : copiez `frontend/.env.example` vers `frontend/.env.local` et définissez `VITE_API_BASE_URL`.
-
-### Build de production
+Build :
 
 ```bash
 npm run build
-npm run preview
 ```
 
-### Tests (Vitest + Testing Library)
+Tests :
 
 ```bash
 npm test
 ```
 
-Mode watch (développement) :
+(`npm run test:watch` pour laisser Vitest tourner pendant qu’on code.)
 
-```bash
-npm run test:watch
-```
+## CSV — colonnes attendues
 
-## Industrialisation (pistes)
+**customers.csv** : `customer_number`, `title`, `last_name`, `first_name`, `postal_code`, `city`, `email`.
 
-- **Docker Compose** : un service `php-fpm` + nginx, un service Node pour le build des assets, volume pour SQLite ou bascule PostgreSQL.
-- **CI/CD** : jobs parallèles `composer install` + `phpunit`, `npm ci` + `npm test` + `npm run build`.
-- **API** : pagination sur les listes, versioning (`/v1/...`), authentification (JWT ou sessions), rate limiting.
-- **Qualité** : PHPStan/Psalm, ESLint strict, déploiement avec migrations automatisées et sauvegardes DB.
+**purchases.csv** : `customer_number`, `purchase_identifier`, `product_id`, `quantity`, `price`, `currency`, `date` (par ex. `2024-01-15` ou format ISO).
+
+## Après ce test
+
+Si je devais aller plus loin : mettre l’API et la base dans Docker, brancher une CI qui lance `composer install` / `phpunit` et `npm ci` / `npm test` / `npm run build`, paginer les listes côté API et ajouter au minimum une auth basique avant toute mise en ligne publique. PostgreSQL à la place de SQLite dès qu’on sort du local.
